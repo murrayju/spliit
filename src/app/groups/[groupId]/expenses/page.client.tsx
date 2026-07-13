@@ -41,25 +41,30 @@ export default function GroupExpensesPageClient({
             <CardTitle>{t('title')}</CardTitle>
             <CardDescription>{t('description')}</CardDescription>
           </CardHeader>
-          <CardHeader className="p-4 sm:p-6 flex flex-row space-y-0 gap-2">
+          <CardHeader className="flex flex-row space-y-0 p-4 sm:p-6">
             <ExportButton groupId={groupId} />
-            <SplitwiseImportButton />
-            {enableReceiptExtract && <CreateFromReceiptButton />}
-            <Button asChild size="icon">
-              <Link
-                href={`/groups/${groupId}/expenses/create`}
-                title={t('create')}
-              >
-                <Plus className="w-4 h-4" />
-              </Link>
-            </Button>
           </CardHeader>
         </div>
 
-        <CardContent className="p-0 pt-2 pb-4 sm:pb-6 flex flex-col gap-4 relative">
+        <CardContent className="relative flex flex-col gap-4 p-0 pb-24 pt-2 sm:pb-28">
           <ExpenseList />
         </CardContent>
       </Card>
+
+      <div className="fixed bottom-4 right-4 z-40 flex flex-col-reverse items-end gap-3 pb-[env(safe-area-inset-bottom)] [&_button]:rounded-full [&_button]:shadow-lg sm:bottom-6 sm:right-6">
+        <Button
+          asChild
+          size="icon"
+          className="h-14 w-14 rounded-full shadow-lg"
+        >
+          <Link href={`/groups/${groupId}/expenses/create`} title={t('create')}>
+            <Plus className="h-6 w-6" />
+            <span className="sr-only">{t('create')}</span>
+          </Link>
+        </Button>
+        {enableReceiptExtract && <CreateFromReceiptButton />}
+        <SplitwiseImportButton />
+      </div>
 
       <ActiveUserModal groupId={groupId} />
     </>
