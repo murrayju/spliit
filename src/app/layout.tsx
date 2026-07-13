@@ -75,7 +75,7 @@ function Content({ children }: { children: React.ReactNode }) {
           <h1>
             <Image
               src="/logo-with-text.png"
-              className="m-0.5 h-auto w-auto"
+              className="m-0.5 h-5 w-auto"
               width={(20 * 522) / 180}
               height={20}
               alt="Spliit"

@@ -41,8 +41,9 @@ export default function GroupExpensesPageClient({
             <CardTitle>{t('title')}</CardTitle>
             <CardDescription>{t('description')}</CardDescription>
           </CardHeader>
-          <CardHeader className="flex flex-row space-y-0 p-4 sm:p-6">
+          <CardHeader className="flex flex-row gap-2 space-y-0 p-4 sm:p-6">
             <ExportButton groupId={groupId} />
+            <SplitwiseImportButton />
           </CardHeader>
         </div>
 
@@ -51,7 +52,7 @@ export default function GroupExpensesPageClient({
         </CardContent>
       </Card>
 
-      <div className="fixed bottom-4 right-4 z-40 flex flex-col-reverse items-end gap-3 pb-[env(safe-area-inset-bottom)] [&_button]:rounded-full [&_button]:shadow-lg sm:bottom-6 sm:right-6">
+      <div className="fixed bottom-4 right-4 z-40 flex flex-col-reverse items-center gap-3 pb-[env(safe-area-inset-bottom)] [&_button]:rounded-full [&_button]:shadow-lg sm:bottom-6 sm:right-6">
         <Button
           asChild
           size="icon"
@@ -63,7 +64,6 @@ export default function GroupExpensesPageClient({
           </Link>
         </Button>
         {enableReceiptExtract && <CreateFromReceiptButton />}
-        <SplitwiseImportButton />
       </div>
 
       <ActiveUserModal groupId={groupId} />
