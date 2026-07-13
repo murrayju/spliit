@@ -964,11 +964,11 @@ export function ExpenseForm({
                     control={form.control}
                     name="expenseDate"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="w-full min-w-0">
                         <FormLabel>{t(`${sExpense}.DateField.label`)}</FormLabel>
                         <FormControl>
                           <Input
-                            className="date-base"
+                            className="date-base max-w-full min-w-0"
                             type="date"
                             value={formatDate(field.value)}
                             onChange={(event) =>
