@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { ExpenseFormValues, GroupFormValues } from '@/lib/schemas'
+import { PreparedSplitwiseExpense } from '@/lib/splitwise-import'
 import {
   ActivityType,
   Expense,
@@ -106,6 +107,50 @@ export async function createExpense(
       },
       notes: expenseFormValues.notes,
     },
+  })
+}
+
+export async function createSplitwiseExpenses(
+  groupId: string,
+  expenses: PreparedSplitwiseExpense[],
+) {
+  return prisma.$transaction(async (transaction) => {
+    for (const expense of expenses) {
+      const expenseId = randomId()
+      await transaction.expense.create({
+        data: {
+          id: expenseId,
+          groupId,
+          expenseDate: expense.expenseDate,
+          title: expense.title,
+          categoryId: expense.categoryId,
+          amount: expense.amount,
+          originalAmount: expense.originalAmount,
+          originalCurrency: expense.originalCurrency,
+          conversionRate: expense.conversionRate,
+          paidById: expense.paidById,
+          splitMode: 'BY_AMOUNT',
+          notes: 'Imported from Splitwise CSV',
+          paidFor: {
+            createMany: {
+              data: expense.paidFor.map(({ participantId, shares }) => ({
+                participantId,
+                shares,
+              })),
+            },
+          },
+        },
+      })
+      await transaction.activity.create({
+        data: {
+          id: randomId(),
+          groupId,
+          activityType: ActivityType.CREATE_EXPENSE,
+          expenseId,
+          data: expense.title,
+        },
+      })
+    }
   })
 }
 
