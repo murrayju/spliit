@@ -543,30 +543,82 @@ export function ExpenseForm({
                 <FormField
                   control={form.control}
                   name="amount"
-                  render={({ field: { onChange, ...field } }) => (
+                  render={({ field: { onChange, value, ...field } }) => (
                     <FormItem className="space-y-0">
                       <FormLabel className="sr-only">
                         {t('amountField.label')}
                       </FormLabel>
                       <div className="flex items-baseline gap-3 border-b">
-                        <span className="text-3xl text-muted-foreground">
-                          {groupCurrency.symbol}
-                        </span>
+                        {group.currencyCode ? (
+                          <FormField
+                            name="originalCurrency"
+                            render={({ field: currencyField }) => (
+                              <FormControl>
+                                <CurrencySelector
+                                  currencies={defaultCurrencyList(locale, '')}
+                                  defaultValue={currencyField.value ?? ''}
+                                  isLoading={false}
+                                  compact
+                                  triggerClassName="h-11 shrink-0 rounded-lg"
+                                  onValueChange={(currencyCode) => {
+                                    if (
+                                      !conversionRequired &&
+                                      currencyCode !== group.currencyCode
+                                    ) {
+                                      form.setValue(
+                                        'originalAmount',
+                                        String(
+                                          form.getValues('amount') || '',
+                                        ) as any,
+                                        {
+                                          shouldDirty: true,
+                                          shouldTouch: true,
+                                        },
+                                      )
+                                    }
+                                    currencyField.onChange(currencyCode)
+                                  }}
+                                />
+                              </FormControl>
+                            )}
+                          />
+                        ) : (
+                          <span className="text-3xl text-muted-foreground">
+                            {groupCurrency.symbol}
+                          </span>
+                        )}
                         <FormControl>
                           <Input
                             className="h-20 rounded-none border-0 px-0 text-5xl font-medium tracking-tight shadow-none focus-visible:ring-0"
                             type="text"
                             inputMode="decimal"
                             placeholder="0.00"
+                            value={
+                              conversionRequired
+                                ? form.watch('originalAmount') ?? ''
+                                : value
+                            }
                             onChange={(event) => {
-                              const value = enforceCurrencyPattern(
+                              const nextValue = enforceCurrencyPattern(
                                 event.target.value,
                               )
-                              const income = Number(value) < 0
+                              const income = Number(nextValue) < 0
                               setIsIncome(income)
                               if (income)
                                 form.setValue('isReimbursement', false)
-                              onChange(value)
+                              if (conversionRequired) {
+                                form.setValue(
+                                  'originalAmount',
+                                  nextValue as any,
+                                  {
+                                    shouldDirty: true,
+                                    shouldTouch: true,
+                                    shouldValidate: true,
+                                  },
+                                )
+                              } else {
+                                onChange(nextValue)
+                              }
                             }}
                             onFocus={(event) => {
                               const target = event.currentTarget

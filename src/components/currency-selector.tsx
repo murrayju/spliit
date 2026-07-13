@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/popover'
 import { Currency } from '@/lib/currency'
 import { useMediaQuery } from '@/lib/hooks'
+import { cn } from '@/lib/utils'
 import { useTranslations } from 'next-intl'
 import { forwardRef, useEffect, useState } from 'react'
 
@@ -25,6 +26,8 @@ type Props = {
   /** Currency code to be selected by default. Overwriting this value will update current selection, too. */
   defaultValue: Currency['code']
   isLoading: boolean
+  compact?: boolean
+  triggerClassName?: string
 }
 
 export function CurrencySelector({
@@ -32,6 +35,8 @@ export function CurrencySelector({
   onValueChange,
   defaultValue,
   isLoading,
+  compact = false,
+  triggerClassName,
 }: Props) {
   const [open, setOpen] = useState(false)
   const [value, setValue] = useState<string>(defaultValue)
@@ -55,6 +60,8 @@ export function CurrencySelector({
             currency={selectedCurrency}
             open={open}
             isLoading={isLoading}
+            compact={compact}
+            className={triggerClassName}
           />
         </PopoverTrigger>
         <PopoverContent className="p-0" align="start">
@@ -78,6 +85,8 @@ export function CurrencySelector({
           currency={selectedCurrency}
           open={open}
           isLoading={isLoading}
+          compact={compact}
+          className={triggerClassName}
         />
       </DrawerTrigger>
       <DrawerContent className="p-0">
@@ -156,23 +165,44 @@ type CurrencyButtonProps = {
   currency: Currency
   open: boolean
   isLoading: boolean
+  compact: boolean
 }
-const CurrencyButton = forwardRef<HTMLButtonElement, CurrencyButtonProps>(
+const CurrencyButton = forwardRef<
+  HTMLButtonElement,
+  CurrencyButtonProps & ButtonProps
+>(
   (
-    { currency, open, isLoading, ...props }: ButtonProps & CurrencyButtonProps,
+    {
+      currency,
+      open,
+      isLoading,
+      compact,
+      className,
+      ...props
+    }: ButtonProps & CurrencyButtonProps,
     ref,
   ) => {
-    const iconClassName = 'ml-2 h-4 w-4 shrink-0 opacity-50'
+    const iconClassName = compact
+      ? 'h-3.5 w-3.5 shrink-0 opacity-50'
+      : 'ml-2 h-4 w-4 shrink-0 opacity-50'
     return (
       <Button
         variant="outline"
         role="combobox"
         aria-expanded={open}
-        className="flex w-full justify-between"
+        className={cn(
+          'flex w-full justify-between',
+          compact && 'w-auto gap-1 px-3 font-semibold',
+          className,
+        )}
         ref={ref}
         {...props}
       >
-        <CurrencyLabel currency={currency} />
+        {compact ? (
+          <span>{currency.code}</span>
+        ) : (
+          <CurrencyLabel currency={currency} />
+        )}
         {isLoading ? (
           <Loader2 className={`animate-spin ${iconClassName}`} />
         ) : (

@@ -19,7 +19,7 @@ async function fetchCurrentCurrencyRate(
     symbols: targetCurrency,
   })
   const response = await fetch(
-    `https://api.frankfurter.app/latest?${params.toString()}`,
+    `https://api.frankfurter.dev/v1/latest?${params.toString()}`,
     { signal: AbortSignal.timeout(10_000) },
   )
   if (!response.ok) throw new Error('Exchange-rate service request failed.')
