@@ -949,14 +949,17 @@ export function ExpenseForm({
             </Dialog>
 
             <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-              <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
+              <DialogContent
+                className="max-h-[85dvh] overflow-y-auto sm:max-w-lg"
+                onOpenAutoFocus={(event) => event.preventDefault()}
+              >
                 <DialogHeader>
                   <DialogTitle>{t('advancedOptions')}</DialogTitle>
                   <DialogDescription>
                     {t(`${sExpense}.TitleField.description`)}
                   </DialogDescription>
                 </DialogHeader>
-                <div className="grid gap-5">
+                <div className="space-y-5">
                   <FormField
                     control={form.control}
                     name="expenseDate"
