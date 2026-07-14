@@ -968,7 +968,7 @@ export function ExpenseForm({
                         <FormLabel>{t(`${sExpense}.DateField.label`)}</FormLabel>
                         <FormControl>
                           <Input
-                            className="date-base max-w-full min-w-0"
+                            className="date-base block box-border max-w-full min-w-0"
                             type="date"
                             value={formatDate(field.value)}
                             onChange={(event) =>
