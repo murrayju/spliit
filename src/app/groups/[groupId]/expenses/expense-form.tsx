@@ -966,16 +966,33 @@ export function ExpenseForm({
                     render={({ field }) => (
                       <FormItem className="min-w-0">
                         <FormLabel>{t(`${sExpense}.DateField.label`)}</FormLabel>
-                        <FormControl>
-                          <Input
-                            className="date-base block box-border max-w-full min-w-0"
-                            type="date"
-                            value={formatDate(field.value)}
-                            onChange={(event) =>
-                              field.onChange(new Date(event.target.value))
-                            }
-                          />
-                        </FormControl>
+                        <div className="relative h-10 w-full overflow-hidden rounded-md border border-input bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+                          <div
+                            aria-hidden="true"
+                            className="pointer-events-none flex h-full items-center justify-between px-3 text-sm"
+                          >
+                            <span>
+                              {new Intl.DateTimeFormat(locale, {
+                                dateStyle: 'medium',
+                                timeZone: 'UTC',
+                              }).format(
+                                new Date(`${formatDate(field.value)}T00:00:00Z`),
+                              )}
+                            </span>
+                            <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                          <FormControl>
+                            <Input
+                              aria-label={t(`${sExpense}.DateField.label`)}
+                              className="absolute inset-0 z-10 h-full w-full cursor-pointer border-0 bg-transparent p-0 opacity-0"
+                              type="date"
+                              value={formatDate(field.value)}
+                              onChange={(event) =>
+                                field.onChange(new Date(event.target.value))
+                              }
+                            />
+                          </FormControl>
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}
