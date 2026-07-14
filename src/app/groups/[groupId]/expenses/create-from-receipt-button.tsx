@@ -25,6 +25,8 @@ import {
 } from '@/components/ui/drawer'
 import { ToastAction } from '@/components/ui/toast'
 import { useToast } from '@/components/ui/use-toast'
+import { Locale } from '@/i18n/request'
+import { getCurrency } from '@/lib/currency'
 import { useMediaQuery } from '@/lib/hooks'
 import {
   formatCurrency,
@@ -82,7 +84,7 @@ function ReceiptDialogContent() {
   const { data: categoriesData } = trpc.categories.list.useQuery()
   const categories = categoriesData?.categories
 
-  const locale = useLocale()
+  const locale = useLocale() as Locale
   const t = useTranslations('CreateFromReceipt')
   const [pending, setPending] = useState(false)
   const { uploadToS3, FileInput, openFileDialog } = usePresignedUpload()
@@ -112,10 +114,19 @@ function ReceiptDialogContent() {
         console.log('Uploading image…')
         let { url } = await uploadToS3(file)
         console.log('Extracting information from receipt…')
-        const { amount, categoryId, date, title } =
+        const { amount, currencyCode, categoryId, date, title } =
           await extractExpenseInformationFromImage(url)
         const { width, height } = await getImageData(file)
-        setReceiptInfo({ amount, categoryId, date, title, url, width, height })
+        setReceiptInfo({
+          amount,
+          currencyCode,
+          categoryId,
+          date,
+          title,
+          url,
+          width,
+          height,
+        })
       } catch (err) {
         console.error(err)
         toast({
@@ -207,7 +218,9 @@ function ReceiptDialogContent() {
                 receiptInfo.amount ? (
                   <>
                     {formatCurrency(
-                      getCurrencyFromGroup(group),
+                      receiptInfo.currencyCode
+                        ? getCurrency(receiptInfo.currencyCode, locale)
+                        : getCurrencyFromGroup(group),
                       receiptInfo.amount,
                       locale,
                       true,
@@ -250,7 +263,9 @@ function ReceiptDialogContent() {
             router.push(
               `/groups/${group.id}/expenses/create?amount=${
                 receiptInfo.amount
-              }&categoryId=${receiptInfo.categoryId}&date=${
+              }&currencyCode=${encodeURIComponent(
+                receiptInfo.currencyCode ?? '',
+              )}&categoryId=${receiptInfo.categoryId}&date=${
                 receiptInfo.date
               }&title=${encodeURIComponent(
                 receiptInfo.title ?? '',

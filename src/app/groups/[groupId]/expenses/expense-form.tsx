@@ -199,6 +199,12 @@ export function ExpenseForm({
   }
   const defaultSplittingOptions = getDefaultSplittingOptions(group)
   const groupCurrency = getCurrencyFromGroup(group)
+  const receiptCurrencyCode = searchParams.get('currencyCode') || undefined
+  const receiptAmount = Number(searchParams.get('amount')) || 0
+  const receiptRequiresConversion =
+    !!group.currencyCode &&
+    !!receiptCurrencyCode &&
+    receiptCurrencyCode !== group.currencyCode
   const form = useForm<ExpenseFormValues>({
     resolver: zodResolver(expenseFormSchema),
     defaultValues: expense
@@ -263,9 +269,9 @@ export function ExpenseForm({
           expenseDate: searchParams.get('date')
             ? new Date(searchParams.get('date') as string)
             : new Date(),
-          amount: Number(searchParams.get('amount')) || 0,
-          originalCurrency: group.currencyCode ?? undefined,
-          originalAmount: undefined,
+          amount: receiptRequiresConversion ? 0 : receiptAmount,
+          originalCurrency: receiptCurrencyCode ?? group.currencyCode ?? undefined,
+          originalAmount: receiptRequiresConversion ? receiptAmount : undefined,
           conversionRate: undefined,
           category: searchParams.get('categoryId')
             ? Number(searchParams.get('categoryId'))
@@ -415,7 +421,11 @@ export function ExpenseForm({
   }, [exchangeRate.data, usingCustomConversionRate])
 
   useEffect(() => {
-    if (!form.getFieldState('originalAmount').isTouched) return
+    if (
+      !form.getFieldState('originalAmount').isTouched &&
+      !receiptRequiresConversion
+    )
+      return
     const originalAmount = form.getValues('originalAmount') ?? 0
     const conversionRate = form.getValues('conversionRate')
 
@@ -436,6 +446,7 @@ export function ExpenseForm({
     form.watch('originalAmount'),
     form.watch('conversionRate'),
     form.getFieldState('originalAmount').isTouched,
+    receiptRequiresConversion,
   ])
 
   let conversionRateMessage = ''
