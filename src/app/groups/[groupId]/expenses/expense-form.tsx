@@ -964,7 +964,7 @@ export function ExpenseForm({
                     control={form.control}
                     name="expenseDate"
                     render={({ field }) => (
-                      <FormItem className="w-full min-w-0">
+                      <FormItem className="min-w-0">
                         <FormLabel>{t(`${sExpense}.DateField.label`)}</FormLabel>
                         <FormControl>
                           <Input
