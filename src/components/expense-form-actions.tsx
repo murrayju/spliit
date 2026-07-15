@@ -18,10 +18,12 @@ export async function extractCategoryFromTitle(description: string) {
   'use server'
   const categories = await getCategories()
 
-  const body: ChatCompletionCreateParamsNonStreaming = {
-    model: 'gpt-3.5-turbo',
+  const body: ChatCompletionCreateParamsNonStreaming & {
+    max_completion_tokens: number
+  } = {
+    model: env.OPENAI_MODEL,
     temperature: 0.1, // try to be highly deterministic so that each distinct title may lead to the same category every time
-    max_tokens: 1, // category ids are unlikely to go beyond ~4 digits so limit possible abuse
+    max_completion_tokens: 32, // enough for GPT-5's reasoning and a short category ID
     messages: [
       {
         role: 'system',

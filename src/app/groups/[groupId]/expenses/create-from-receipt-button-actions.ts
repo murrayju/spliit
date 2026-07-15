@@ -13,7 +13,7 @@ export async function extractExpenseInformationFromImage(imageUrl: string) {
   const categories = await getCategories()
 
   const body: ChatCompletionCreateParamsNonStreaming = {
-    model: 'gpt-5-nano',
+    model: env.OPENAI_MODEL,
     response_format: { type: 'json_object' },
     messages: [
       {

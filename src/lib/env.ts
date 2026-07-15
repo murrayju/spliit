@@ -36,6 +36,7 @@ const envSchema = z
       z.boolean().default(false),
     ),
     OPENAI_API_KEY: z.string().optional(),
+    OPENAI_MODEL: z.string().trim().min(1).default('gpt-5.4-nano'),
   })
   .superRefine((env, ctx) => {
     if (
