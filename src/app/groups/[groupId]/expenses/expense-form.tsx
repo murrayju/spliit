@@ -1,5 +1,6 @@
 import { CategorySelector } from '@/components/category-selector'
 import { CurrencySelector } from '@/components/currency-selector'
+import { DateInput } from '@/components/date-input'
 import { ExpenseDocumentsInput } from '@/components/expense-documents-input'
 import { SubmitButton } from '@/components/submit-button'
 import { Button } from '@/components/ui/button'
@@ -977,33 +978,11 @@ export function ExpenseForm({
                     render={({ field }) => (
                       <FormItem className="min-w-0">
                         <FormLabel>{t(`${sExpense}.DateField.label`)}</FormLabel>
-                        <div className="relative h-10 w-full overflow-hidden rounded-md border border-input bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
-                          <div
-                            aria-hidden="true"
-                            className="pointer-events-none flex h-full items-center justify-between px-3 text-sm"
-                          >
-                            <span>
-                              {new Intl.DateTimeFormat(locale, {
-                                dateStyle: 'medium',
-                                timeZone: 'UTC',
-                              }).format(
-                                new Date(`${formatDate(field.value)}T00:00:00Z`),
-                              )}
-                            </span>
-                            <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                          </div>
-                          <FormControl>
-                            <Input
-                              aria-label={t(`${sExpense}.DateField.label`)}
-                              className="absolute inset-0 z-10 h-full w-full cursor-pointer border-0 bg-transparent p-0 opacity-0"
-                              type="date"
-                              value={formatDate(field.value)}
-                              onChange={(event) =>
-                                field.onChange(new Date(event.target.value))
-                              }
-                            />
-                          </FormControl>
-                        </div>
+                        <DateInput
+                          label={t(`${sExpense}.DateField.label`)}
+                          value={field.value}
+                          onChange={field.onChange}
+                        />
                         <FormMessage />
                       </FormItem>
                     )}
@@ -1264,16 +1243,11 @@ export function ExpenseForm({
               render={({ field }) => (
                 <FormItem className="sm:order-1">
                   <FormLabel>{t(`${sExpense}.DateField.label`)}</FormLabel>
-                  <FormControl>
-                    <Input
-                      className="date-base"
-                      type="date"
-                      defaultValue={formatDate(field.value)}
-                      onChange={(event) => {
-                        return field.onChange(new Date(event.target.value))
-                      }}
-                    />
-                  </FormControl>
+                  <DateInput
+                    label={t(`${sExpense}.DateField.label`)}
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
                   <FormDescription>
                     {t(`${sExpense}.DateField.description`)}
                   </FormDescription>
