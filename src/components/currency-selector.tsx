@@ -7,8 +7,9 @@ import {
   CommandGroup,
   CommandInput,
   CommandItem,
+  CommandList,
 } from '@/components/ui/command'
-import { Drawer, DrawerContent, DrawerTrigger } from '@/components/ui/drawer'
+import { MobileCommandDialog } from '@/components/mobile-command-dialog'
 import {
   Popover,
   PopoverContent,
@@ -41,6 +42,7 @@ export function CurrencySelector({
   const [open, setOpen] = useState(false)
   const [value, setValue] = useState<string>(defaultValue)
   const isDesktop = useMediaQuery('(min-width: 768px)')
+  const t = useTranslations('Currencies')
 
   // allow overwriting currently selected currency from outside
   useEffect(() => {
@@ -51,6 +53,17 @@ export function CurrencySelector({
   const selectedCurrency =
     currencies.find((currency) => (currency.code ?? '') === value) ??
     currencies[0]
+  const updateOpen = (nextOpen: boolean) => {
+    if (!nextOpen && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur()
+    }
+    setOpen(nextOpen)
+  }
+  const selectCurrency = (code: Currency['code']) => {
+    setValue(code)
+    onValueChange(code)
+    updateOpen(false)
+  }
 
   if (isDesktop) {
     return (
@@ -67,11 +80,7 @@ export function CurrencySelector({
         <PopoverContent className="p-0" align="start">
           <CurrencyCommand
             currencies={currencies}
-            onValueChange={(code) => {
-              setValue(code)
-              onValueChange(code)
-              setOpen(false)
-            }}
+            onValueChange={selectCurrency}
           />
         </PopoverContent>
       </Popover>
@@ -79,8 +88,11 @@ export function CurrencySelector({
   }
 
   return (
-    <Drawer open={open} onOpenChange={setOpen}>
-      <DrawerTrigger asChild>
+    <MobileCommandDialog
+      open={open}
+      onOpenChange={updateOpen}
+      title={t('search')}
+      trigger={
         <CurrencyButton
           currency={selectedCurrency}
           open={open}
@@ -88,27 +100,25 @@ export function CurrencySelector({
           compact={compact}
           className={triggerClassName}
         />
-      </DrawerTrigger>
-      <DrawerContent className="p-0">
-        <CurrencyCommand
-          currencies={currencies}
-          onValueChange={(id) => {
-            setValue(id)
-            onValueChange(id)
-            setOpen(false)
-          }}
-        />
-      </DrawerContent>
-    </Drawer>
+      }
+    >
+      <CurrencyCommand
+        currencies={currencies}
+        onValueChange={selectCurrency}
+        mobile
+      />
+    </MobileCommandDialog>
   )
 }
 
 function CurrencyCommand({
   currencies,
   onValueChange,
+  mobile = false,
 }: {
   currencies: Currency[]
   onValueChange: (currencyId: Currency['code']) => void
+  mobile?: boolean
 }) {
   const currencyGroup = (currency: Currency) => {
     switch (currency.code) {
@@ -135,20 +145,29 @@ function CurrencyCommand({
   )
 
   return (
-    <Command>
-      <CommandInput placeholder={t('search')} className="text-base" />
-      <CommandEmpty>{t('noCurrency')}</CommandEmpty>
-      <div className="w-full max-h-[300px] overflow-y-auto">
+    <Command className={mobile ? 'min-h-0 rounded-none' : undefined}>
+      <CommandInput placeholder={t('search')} className="pr-12 text-base" />
+      <CommandList
+        className={
+          mobile
+            ? 'max-h-none min-h-0 flex-1 overscroll-contain pb-[env(safe-area-inset-bottom)]'
+            : undefined
+        }
+      >
+        <CommandEmpty>{t('noCurrency')}</CommandEmpty>
         {Object.entries(currenciesByGroup).map(
           ([group, groupCurrencies], index) => (
             <CommandGroup key={index} heading={t(`${group}.heading`)}>
               {groupCurrencies.map((currency) => (
                 <CommandItem
                   key={currency.code}
+                  className={
+                    mobile
+                      ? 'min-h-11 rounded-none px-3 py-2.5 text-base'
+                      : undefined
+                  }
                   value={`${currency.code} ${currency.name} ${currency.symbol}`}
-                  onSelect={(currentValue) => {
-                    onValueChange(currency.code)
-                  }}
+                  onSelect={() => onValueChange(currency.code)}
                 >
                   <CurrencyLabel currency={currency} />
                 </CommandItem>
@@ -156,7 +175,7 @@ function CurrencyCommand({
             </CommandGroup>
           ),
         )}
-      </div>
+      </CommandList>
     </Command>
   )
 }

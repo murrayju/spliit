@@ -8,8 +8,9 @@ import {
   CommandGroup,
   CommandInput,
   CommandItem,
+  CommandList,
 } from '@/components/ui/command'
-import { Drawer, DrawerContent, DrawerTrigger } from '@/components/ui/drawer'
+import { MobileCommandDialog } from '@/components/mobile-command-dialog'
 import {
   Popover,
   PopoverContent,
@@ -37,6 +38,7 @@ export function CategorySelector({
   const [open, setOpen] = useState(false)
   const [value, setValue] = useState<number>(defaultValue)
   const isDesktop = useMediaQuery('(min-width: 768px)')
+  const t = useTranslations('Categories')
 
   // allow overwriting currently selected category from outside
   useEffect(() => {
@@ -46,6 +48,17 @@ export function CategorySelector({
 
   const selectedCategory =
     categories.find((category) => category.id === value) ?? categories[0]
+  const updateOpen = (nextOpen: boolean) => {
+    if (!nextOpen && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur()
+    }
+    setOpen(nextOpen)
+  }
+  const selectCategory = (id: Category['id']) => {
+    setValue(id)
+    onValueChange(id)
+    updateOpen(false)
+  }
 
   if (isDesktop) {
     return (
@@ -60,11 +73,7 @@ export function CategorySelector({
         <PopoverContent className="p-0" align="start">
           <CategoryCommand
             categories={categories}
-            onValueChange={(id) => {
-              setValue(id)
-              onValueChange(id)
-              setOpen(false)
-            }}
+            onValueChange={selectCategory}
           />
         </PopoverContent>
       </Popover>
@@ -72,34 +81,35 @@ export function CategorySelector({
   }
 
   return (
-    <Drawer open={open} onOpenChange={setOpen}>
-      <DrawerTrigger asChild>
+    <MobileCommandDialog
+      open={open}
+      onOpenChange={updateOpen}
+      title={t('search')}
+      trigger={
         <CategoryButton
           category={selectedCategory}
           open={open}
           isLoading={isLoading}
         />
-      </DrawerTrigger>
-      <DrawerContent className="p-0">
-        <CategoryCommand
-          categories={categories}
-          onValueChange={(id) => {
-            setValue(id)
-            onValueChange(id)
-            setOpen(false)
-          }}
-        />
-      </DrawerContent>
-    </Drawer>
+      }
+    >
+      <CategoryCommand
+        categories={categories}
+        onValueChange={selectCategory}
+        mobile
+      />
+    </MobileCommandDialog>
   )
 }
 
 function CategoryCommand({
   categories,
   onValueChange,
+  mobile = false,
 }: {
   categories: Category[]
   onValueChange: (categoryId: Category['id']) => void
+  mobile?: boolean
 }) {
   const t = useTranslations('Categories')
   const categoriesByGroup = categories.reduce<Record<string, Category[]>>(
@@ -111,23 +121,31 @@ function CategoryCommand({
   )
 
   return (
-    <Command>
-      <CommandInput placeholder={t('search')} className="text-base" />
-      <CommandEmpty>{t('noCategory')}</CommandEmpty>
-      <div className="w-full max-h-[300px] overflow-y-auto">
+    <Command className={mobile ? 'min-h-0 rounded-none' : undefined}>
+      <CommandInput placeholder={t('search')} className="pr-12 text-base" />
+      <CommandList
+        className={
+          mobile
+            ? 'max-h-none min-h-0 flex-1 overscroll-contain pb-[env(safe-area-inset-bottom)]'
+            : undefined
+        }
+      >
+        <CommandEmpty>{t('noCategory')}</CommandEmpty>
         {Object.entries(categoriesByGroup).map(
           ([group, groupCategories], index) => (
             <CommandGroup key={index} heading={t(`${group}.heading`)}>
               {groupCategories.map((category) => (
                 <CommandItem
                   key={category.id}
+                  className={
+                    mobile
+                      ? 'min-h-11 rounded-none px-3 py-2.5 text-base'
+                      : undefined
+                  }
                   value={`${category.id} ${t(
                     `${category.grouping}.heading`,
                   )} ${t(`${category.grouping}.${category.name}`)}`}
-                  onSelect={(currentValue) => {
-                    const id = Number(currentValue.split(' ')[0])
-                    onValueChange(id)
-                  }}
+                  onSelect={() => onValueChange(category.id)}
                 >
                   <CategoryLabel category={category} />
                 </CommandItem>
@@ -135,7 +153,7 @@ function CategoryCommand({
             </CommandGroup>
           ),
         )}
-      </div>
+      </CommandList>
     </Command>
   )
 }
