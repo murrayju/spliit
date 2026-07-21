@@ -63,7 +63,6 @@ import { AppRouterOutput } from '@/trpc/routers/_app'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { RecurrenceRule } from '@prisma/client'
 import {
-  CalendarDays,
   Camera,
   ChevronRight,
   MoreHorizontal,
@@ -180,7 +179,6 @@ export function ExpenseForm({
   runtimeFeatureFlags: RuntimeFeatureFlags
 }) {
   const t = useTranslations('ExpenseForm')
-  const tCategories = useTranslations('Categories')
   const locale = useLocale() as Locale
   const isCreate = expense === undefined
   const searchParams = useSearchParams()
@@ -484,9 +482,6 @@ export function ExpenseForm({
   const selectedPayerName =
     group.participants.find(({ id }) => id === form.watch('paidBy'))?.name ??
     t(`${sExpense}.paidByField.placeholder`)
-  const selectedCategory = categories.find(
-    ({ id }) => id === form.watch('category'),
-  )
   const selectedSplitModeLabel = match(form.watch('splitMode'))
     .with('EVENLY', () => t('SplitModeField.evenly'))
     .with('BY_SHARES', () => t('SplitModeField.byShares'))
@@ -647,20 +642,40 @@ export function ExpenseForm({
               </section>
 
               <section className="grid gap-3 sm:grid-cols-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-auto min-h-16 justify-start gap-3 px-4 py-3 text-left"
-                  onClick={() => setSharingOpen(true)}
-                >
-                  <Users className="h-5 w-5 shrink-0 text-primary" />
-                  <span className="flex min-w-0 flex-col">
-                    <span className="text-xs font-normal text-muted-foreground">
-                      {t(`${sExpense}.paidByField.label`)}
-                    </span>
-                    <span className="truncate">{selectedPayerName}</span>
-                  </span>
-                </Button>
+                <FormField
+                  control={form.control}
+                  name="paidBy"
+                  render={({ field }) => (
+                    <FormItem className="col-span-1 space-y-0">
+                      <FormLabel className="sr-only">
+                        {t(`${sExpense}.paidByField.label`)}
+                      </FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger className="h-auto min-h-16 justify-start gap-3 px-4 py-3 text-left">
+                            <Users className="h-5 w-5 shrink-0 text-primary" />
+                            <span className="!flex min-w-0 flex-1 flex-col !overflow-visible">
+                              <span className="text-xs font-normal text-muted-foreground">
+                                {t(`${sExpense}.paidByField.label`)}
+                              </span>
+                              <span className="truncate">
+                                {selectedPayerName}
+                              </span>
+                            </span>
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {group.participants.map(({ id, name }) => (
+                            <SelectItem key={id} value={id}>
+                              {name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage className="sr-only" />
+                    </FormItem>
+                  )}
+                />
                 <Button
                   type="button"
                   variant="outline"
@@ -677,40 +692,44 @@ export function ExpenseForm({
                     </span>
                   </span>
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-auto min-h-16 justify-start gap-3 px-4 py-3 text-left"
-                  onClick={() => setDetailsOpen(true)}
-                >
-                  <CalendarDays className="h-5 w-5 shrink-0 text-primary" />
-                  <span className="flex min-w-0 flex-col">
-                    <span className="text-xs font-normal text-muted-foreground">
-                      {t(`${sExpense}.DateField.label`)}
-                    </span>
-                    <span>{formatDate(form.watch('expenseDate'))}</span>
-                  </span>
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-auto min-h-16 justify-start gap-3 px-4 py-3 text-left"
-                  onClick={() => setDetailsOpen(true)}
-                >
-                  <MoreHorizontal className="h-5 w-5 shrink-0 text-primary" />
-                  <span className="flex min-w-0 flex-col">
-                    <span className="text-xs font-normal text-muted-foreground">
-                      {t('categoryField.label')}
-                    </span>
-                    <span className="truncate">
-                      {selectedCategory
-                        ? tCategories(
-                            `${selectedCategory.grouping}.${selectedCategory.name}`,
-                          )
-                        : t('categoryField.label')}
-                    </span>
-                  </span>
-                </Button>
+                <FormField
+                  control={form.control}
+                  name="expenseDate"
+                  render={({ field }) => (
+                    <FormItem className="col-span-1 min-w-0 space-y-0">
+                      <FormLabel className="sr-only">
+                        {t(`${sExpense}.DateField.label`)}
+                      </FormLabel>
+                      <DateInput
+                        label={t(`${sExpense}.DateField.label`)}
+                        value={field.value}
+                        onChange={field.onChange}
+                        variant="summary"
+                      />
+                      <FormMessage className="sr-only" />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="category"
+                  render={({ field }) => (
+                    <FormItem className="col-span-1 space-y-0">
+                      <FormLabel className="sr-only">
+                        {t('categoryField.label')}
+                      </FormLabel>
+                      <CategorySelector
+                        categories={categories}
+                        defaultValue={form.watch(field.name)}
+                        onValueChange={field.onChange}
+                        isLoading={isCategoryLoading}
+                        variant="summary"
+                        summaryLabel={t('categoryField.label')}
+                      />
+                      <FormMessage className="sr-only" />
+                    </FormItem>
+                  )}
+                />
               </section>
 
               <Button
@@ -737,38 +756,6 @@ export function ExpenseForm({
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-5">
-                  <FormField
-                    control={form.control}
-                    name="paidBy"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t(`${sExpense}.paidByField.label`)}</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={getSelectedPayer(field)}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue
-                                placeholder={t(
-                                  `${sExpense}.paidByField.placeholder`,
-                                )}
-                              />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {group.participants.map(({ id, name }) => (
-                              <SelectItem key={id} value={id}>
-                                {name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
                   <FormField
                     control={form.control}
                     name="splitMode"
@@ -972,39 +959,6 @@ export function ExpenseForm({
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-5">
-                  <FormField
-                    control={form.control}
-                    name="expenseDate"
-                    render={({ field }) => (
-                      <FormItem className="min-w-0">
-                        <FormLabel>{t(`${sExpense}.DateField.label`)}</FormLabel>
-                        <DateInput
-                          label={t(`${sExpense}.DateField.label`)}
-                          value={field.value}
-                          onChange={field.onChange}
-                        />
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t('categoryField.label')}</FormLabel>
-                        <CategorySelector
-                          categories={categories}
-                          defaultValue={form.watch(field.name)}
-                          onValueChange={field.onChange}
-                          isLoading={isCategoryLoading}
-                        />
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
                   <FormField
                     name="originalCurrency"
                     render={({ field: { onChange, ...field } }) => (
@@ -2034,9 +1988,4 @@ export function ExpenseForm({
       </form>
     </Form>
   )
-}
-
-function formatDate(date?: Date) {
-  if (!date || isNaN(date as any)) date = new Date()
-  return date.toISOString().substring(0, 10)
 }

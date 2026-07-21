@@ -27,6 +27,8 @@ type Props = {
   /** Category ID to be selected by default. Overwriting this value will update current selection, too. */
   defaultValue: Category['id']
   isLoading: boolean
+  variant?: 'default' | 'summary'
+  summaryLabel?: string
 }
 
 export function CategorySelector({
@@ -34,6 +36,8 @@ export function CategorySelector({
   onValueChange,
   defaultValue,
   isLoading,
+  variant = 'default',
+  summaryLabel,
 }: Props) {
   const [open, setOpen] = useState(false)
   const [value, setValue] = useState<number>(defaultValue)
@@ -68,6 +72,8 @@ export function CategorySelector({
             category={selectedCategory}
             open={open}
             isLoading={isLoading}
+            displayVariant={variant}
+            summaryLabel={summaryLabel}
           />
         </PopoverTrigger>
         <PopoverContent className="p-0" align="start">
@@ -90,6 +96,8 @@ export function CategorySelector({
           category={selectedCategory}
           open={open}
           isLoading={isLoading}
+          displayVariant={variant}
+          summaryLabel={summaryLabel}
         />
       }
     >
@@ -162,23 +170,58 @@ type CategoryButtonProps = {
   category: Category
   open: boolean
   isLoading: boolean
+  displayVariant: 'default' | 'summary'
+  summaryLabel?: string
 }
 const CategoryButton = forwardRef<HTMLButtonElement, CategoryButtonProps>(
   (
-    { category, open, isLoading, ...props }: ButtonProps & CategoryButtonProps,
+    {
+      category,
+      open,
+      isLoading,
+      displayVariant,
+      summaryLabel,
+      ...props
+    }: ButtonProps & CategoryButtonProps,
     ref,
   ) => {
-    const iconClassName = 'ml-2 h-4 w-4 shrink-0 opacity-50'
+    const t = useTranslations('Categories')
+    const iconClassName =
+      displayVariant === 'summary'
+        ? 'ml-auto h-4 w-4 shrink-0 opacity-50'
+        : 'ml-2 h-4 w-4 shrink-0 opacity-50'
     return (
       <Button
         variant="outline"
         role="combobox"
         aria-expanded={open}
-        className="flex w-full justify-between"
+        aria-label={displayVariant === 'summary' ? summaryLabel : undefined}
+        className={
+          displayVariant === 'summary'
+            ? 'h-auto min-h-16 w-full justify-start gap-3 px-4 py-3 text-left'
+            : 'flex w-full justify-between'
+        }
         ref={ref}
         {...props}
       >
-        <CategoryLabel category={category} />
+        {displayVariant === 'summary' ? (
+          <>
+            <CategoryIcon
+              category={category}
+              className="h-5 w-5 shrink-0 text-primary"
+            />
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="text-xs font-normal text-muted-foreground">
+                {summaryLabel}
+              </span>
+              <span className="truncate">
+                {t(`${category.grouping}.${category.name}`)}
+              </span>
+            </span>
+          </>
+        ) : (
+          <CategoryLabel category={category} />
+        )}
         {isLoading ? (
           <Loader2 className={`animate-spin ${iconClassName}`} />
         ) : (

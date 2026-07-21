@@ -1,6 +1,7 @@
 'use client'
 
 import { Locale } from '@/i18n/request'
+import { cn } from '@/lib/utils'
 import { CalendarDays } from 'lucide-react'
 import { useLocale } from 'next-intl'
 import { FormControl } from './ui/form'
@@ -10,10 +11,12 @@ export function DateInput({
   value,
   onChange,
   label,
+  variant = 'default',
 }: {
   value?: Date
   onChange: (value: Date) => void
   label: string
+  variant?: 'default' | 'summary'
 }) {
   const locale = useLocale() as Locale
   const inputValue = formatDateInputValue(value)
@@ -23,13 +26,35 @@ export function DateInput({
   }).format(new Date(`${inputValue}T00:00:00Z`))
 
   return (
-    <div className="relative h-10 w-full overflow-hidden rounded-md border border-input bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+    <div
+      className={cn(
+        'relative w-full overflow-hidden border border-input bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2',
+        variant === 'summary' ? 'min-h-16 rounded-md' : 'h-10 rounded-md',
+      )}
+    >
       <div
         aria-hidden="true"
-        className="pointer-events-none flex h-full items-center justify-between px-3 text-sm"
+        className={cn(
+          'pointer-events-none flex h-full items-center text-sm',
+          variant === 'summary'
+            ? 'min-h-16 justify-start gap-3 px-4 py-3 text-left'
+            : 'justify-between px-3',
+        )}
       >
-        <span>{displayValue}</span>
-        <CalendarDays className="h-4 w-4 text-muted-foreground" />
+        {variant === 'summary' ? (
+          <>
+            <CalendarDays className="h-5 w-5 shrink-0 text-primary" />
+            <span className="flex min-w-0 flex-col">
+              <span className="text-xs text-muted-foreground">{label}</span>
+              <span>{displayValue}</span>
+            </span>
+          </>
+        ) : (
+          <>
+            <span>{displayValue}</span>
+            <CalendarDays className="h-4 w-4 text-muted-foreground" />
+          </>
+        )}
       </div>
       <FormControl>
         <Input
