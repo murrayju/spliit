@@ -65,6 +65,7 @@
     "paidBy": "Paid by <strong>{paidBy}</strong> for <paidFor></paidFor>",
     "everyone": "everyone",
     "receivedBy": "Received by <strong>{paidBy}</strong> for <paidFor></paidFor>",
+    "repaid": "<strong>{paidBy}</strong> repaid <paidFor></paidFor>",
     "yourBalance": "Your balance:",
     "notInvolved": "You are not involved"
   },
@@ -149,6 +150,60 @@
     }
   },
   "ExpenseForm": {
+    "entryType": {
+      "label": "Entry type",
+      "expense": "Expense",
+      "refund": "Refund",
+      "repayment": "Repayment"
+    },
+    "Refund": {
+      "create": "Create refund",
+      "edit": "Edit refund",
+      "TitleField": {
+        "label": "Refund title",
+        "placeholder": "Restaurant refund",
+        "description": "Enter a description for the refund."
+      },
+      "DateField": {
+        "label": "Refund date",
+        "description": "Enter the date the refund was received."
+      },
+      "currencyField": {
+        "label": "Currency of refund",
+        "description": "The currency in which the refund was received."
+      },
+      "categoryFieldDescription": "Select the refund category.",
+      "paidByField": {
+        "label": "Received by",
+        "placeholder": "Select a participant",
+        "description": "Select the participant who received the refund."
+      },
+      "recurrenceRule": {
+        "label": "Refund recurrence",
+        "description": "Select how often the refund should repeat.",
+        "none": "None",
+        "daily": "Daily",
+        "weekly": "Weekly",
+        "monthly": "Monthly"
+      },
+      "paidFor": {
+        "title": "Refund applies to",
+        "description": "Select who should benefit from the refund."
+      },
+      "splitModeDescription": "Select how to split the refund.",
+      "attachDescription": "See and attach documents to the refund."
+    },
+    "Repayment": {
+      "create": "Create repayment",
+      "edit": "Edit repayment",
+      "defaultTitle": "Repayment",
+      "description": "Record money sent from one participant to another.",
+      "from": "From",
+      "to": "To",
+      "amount": "Amount",
+      "date": "Date",
+      "notes": "Notes"
+    },
     "Income": {
       "create": "Create income",
       "edit": "Edit income",
@@ -383,6 +438,8 @@
     "ratePositive": "The rate must be strictly greater than zero.",
     "paidByRequired": "You must select a participant.",
     "paidForMin1": "The expense must be paid for at least one participant.",
+    "repaymentOneRecipient": "Select one repayment recipient.",
+    "repaymentDifferentParticipants": "The sender and recipient must be different people.",
     "noZeroShares": "All shares must be higher than 0.",
     "amountSum": "Sum of amounts must equal the expense amount.",
     "percentageSum": "Sum of percentages must equal 100."

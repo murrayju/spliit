@@ -143,6 +143,22 @@ export const expenseFormSchema = z
       .default('NONE'),
   })
   .superRefine((expense, ctx) => {
+    if (expense.isReimbursement) {
+      if (expense.paidFor.length !== 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'repaymentOneRecipient',
+          path: ['paidFor'],
+        })
+      } else if (expense.paidFor[0].participant === expense.paidBy) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'repaymentDifferentParticipants',
+          path: ['paidFor'],
+        })
+      }
+    }
+
     switch (expense.splitMode) {
       case 'EVENLY':
         break // noop

@@ -44,6 +44,12 @@ import {
 import { Locale } from '@/i18n/request'
 import { randomId } from '@/lib/api'
 import { defaultCurrencyList, getCurrency } from '@/lib/currency'
+import {
+  ExpenseEntryType,
+  amountForEntryForm,
+  amountForEntryStorage,
+  inferExpenseEntryType,
+} from '@/lib/expense-entry'
 import { RuntimeFeatureFlags } from '@/lib/featureFlags'
 import { useActiveUser, useCurrencyRate } from '@/lib/hooks'
 import {
@@ -63,6 +69,7 @@ import { AppRouterOutput } from '@/trpc/routers/_app'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { RecurrenceRule } from '@prisma/client'
 import {
+  ArrowRight,
   Camera,
   ChevronRight,
   MoreHorizontal,
@@ -74,7 +81,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { UseFormReturn, useForm } from 'react-hook-form'
 import { match } from 'ts-pattern'
 import { DeletePopup } from '../../../../components/delete-popup'
 import { extractCategoryFromTitle } from '../../../../components/expense-form-actions'
@@ -88,6 +95,9 @@ const enforceCurrencyPattern = (value: string) =>
     .replace(/_/, '-') // change back _ to minus
     .replace(/#/, '.') // change back # to dot
     .replace(/[^-\d.]/g, '') // remove all non-numeric characters
+
+const enforcePositiveCurrencyPattern = (value: string) =>
+  enforceCurrencyPattern(value).replace(/^-/, '')
 
 const getDefaultSplittingOptions = (
   group: NonNullable<AppRouterOutput['groups']['get']['group']>,
@@ -204,19 +214,40 @@ export function ExpenseForm({
     !!group.currencyCode &&
     !!receiptCurrencyCode &&
     receiptCurrencyCode !== group.currencyCode
+  const repaymentPayerId =
+    searchParams.get('from') ??
+    getSelectedPayer() ??
+    group.participants[0]?.id ??
+    ''
+  const repaymentRecipientId =
+    searchParams.get('to') ??
+    group.participants.find(({ id }) => id !== repaymentPayerId)?.id
+  const initialEntryType: ExpenseEntryType = expense
+    ? inferExpenseEntryType({
+        amount: expense.amount,
+        isReimbursement: expense.isReimbursement,
+      })
+    : searchParams.get('reimbursement')
+      ? 'REPAYMENT'
+      : 'EXPENSE'
+  const [entryType, setEntryType] =
+    useState<ExpenseEntryType>(initialEntryType)
   const form = useForm<ExpenseFormValues>({
     resolver: zodResolver(expenseFormSchema),
     defaultValues: expense
       ? {
           title: expense.title,
           expenseDate: expense.expenseDate ?? new Date(),
-          amount: amountAsDecimal(expense.amount, groupCurrency),
+          amount: amountAsDecimal(
+            amountForEntryForm(expense.amount),
+            groupCurrency,
+          ),
           originalCurrency: expense.originalCurrency ?? group.currencyCode,
           originalAmount:
             expense.originalAmount === null || expense.originalAmount === undefined
               ? undefined
               : amountAsDecimal(
-                  expense.originalAmount,
+                  amountForEntryForm(expense.originalAmount),
                   getCurrency(expense.originalCurrency, locale, 'Custom'),
                 ),
           conversionRate: expense.conversionRate?.toNumber(),
@@ -247,17 +278,17 @@ export function ExpenseForm({
           originalAmount: undefined,
           conversionRate: undefined,
           category: 1, // category with Id 1 is Payment
-          paidBy: searchParams.get('from') ?? undefined,
-          paidFor: [
-            searchParams.get('to')
-              ? {
-                  participant: searchParams.get('to')!,
+          paidBy: repaymentPayerId,
+          paidFor: repaymentRecipientId
+            ? [
+                {
+                  participant: repaymentRecipientId,
                   shares: '1' as any, // String for consistent form handling
-                }
-              : undefined,
-          ],
+                },
+              ]
+            : [],
           isReimbursement: true,
-          splitMode: defaultSplittingOptions.splitMode,
+          splitMode: 'EVENLY',
           saveDefaultSplittingOptions: false,
           documents: [],
           notes: '',
@@ -268,9 +299,13 @@ export function ExpenseForm({
           expenseDate: searchParams.get('date')
             ? new Date(searchParams.get('date') as string)
             : new Date(),
-          amount: receiptRequiresConversion ? 0 : receiptAmount,
+          amount: receiptRequiresConversion
+            ? 0
+            : amountForEntryForm(receiptAmount),
           originalCurrency: receiptCurrencyCode ?? group.currencyCode ?? undefined,
-          originalAmount: receiptRequiresConversion ? receiptAmount : undefined,
+          originalAmount: receiptRequiresConversion
+            ? amountForEntryForm(receiptAmount)
+            : undefined,
           conversionRate: undefined,
           category: searchParams.get('categoryId')
             ? Number(searchParams.get('categoryId'))
@@ -298,8 +333,91 @@ export function ExpenseForm({
   const [isCategoryLoading, setCategoryLoading] = useState(false)
   const activeUserId = useActiveUser(group.id)
 
+  const changeEntryType = (nextEntryType: ExpenseEntryType) => {
+    if (nextEntryType === entryType) return
+
+    const options = { shouldDirty: true }
+    form.setValue(
+      'amount',
+      amountForEntryForm(Number(form.getValues('amount') || 0)),
+      options,
+    )
+    const currentOriginalAmount = form.getValues('originalAmount')
+    if (currentOriginalAmount !== undefined) {
+      form.setValue(
+        'originalAmount',
+        amountForEntryForm(Number(currentOriginalAmount)),
+        options,
+      )
+    }
+
+    if (nextEntryType === 'REPAYMENT') {
+      const payer =
+        form.getValues('paidBy') ??
+        getSelectedPayer() ??
+        group.participants[0]?.id ??
+        ''
+      const currentRecipient = form.getValues('paidFor')[0]?.participant
+      const recipient =
+        currentRecipient && currentRecipient !== payer
+          ? currentRecipient
+          : group.participants.find(({ id }) => id !== payer)?.id
+
+      form.setValue('title', t('Repayment.defaultTitle'), options)
+      form.setValue('category', 1, options)
+      form.setValue('paidBy', payer, options)
+      form.setValue(
+        'paidFor',
+        recipient ? [{ participant: recipient, shares: '1' as any }] : [],
+        options,
+      )
+      form.setValue('splitMode', 'EVENLY', options)
+      form.setValue('saveDefaultSplittingOptions', false, options)
+      form.setValue('isReimbursement', true, options)
+      form.setValue('originalCurrency', group.currencyCode, options)
+      form.setValue('originalAmount', undefined, options)
+      form.setValue('conversionRate', undefined, options)
+      form.setValue('recurrenceRule', RecurrenceRule.NONE, options)
+    } else {
+      if (entryType === 'REPAYMENT') {
+        form.setValue('title', '', options)
+        form.setValue('category', 0, options)
+        form.setValue('paidFor', defaultSplittingOptions.paidFor, options)
+        form.setValue('splitMode', defaultSplittingOptions.splitMode, options)
+      }
+      form.setValue('isReimbursement', false, options)
+      if (!form.getValues('originalCurrency')) {
+        form.setValue('originalCurrency', group.currencyCode, options)
+      }
+    }
+
+    form.clearErrors()
+    setEntryType(nextEntryType)
+  }
+
   const submit = async (values: ExpenseFormValues) => {
-    await persistDefaultSplittingOptions(group.id, values)
+    values.isReimbursement = entryType === 'REPAYMENT'
+    values.amount = amountForEntryStorage(Number(values.amount), entryType)
+    if (values.originalAmount !== undefined) {
+      values.originalAmount = amountForEntryStorage(
+        Number(values.originalAmount),
+        entryType,
+      )
+    }
+
+    if (entryType === 'REPAYMENT') {
+      values.title = t('Repayment.defaultTitle')
+      values.category = 1
+      values.splitMode = 'EVENLY'
+      values.saveDefaultSplittingOptions = false
+      values.documents = []
+      values.recurrenceRule = RecurrenceRule.NONE
+      values.originalCurrency = group.currencyCode
+      delete values.originalAmount
+      delete values.conversionRate
+    } else {
+      await persistDefaultSplittingOptions(group.id, values)
+    }
 
     // Store monetary amounts in minor units (cents)
     values.amount = amountAsMinorUnits(values.amount, groupCurrency)
@@ -325,12 +443,11 @@ export function ExpenseForm({
     return onSubmit(values, activeUserId ?? undefined)
   }
 
-  const [isIncome, setIsIncome] = useState(Number(form.getValues().amount) < 0)
   const [manuallyEditedParticipants, setManuallyEditedParticipants] = useState<
     Set<string>
   >(new Set())
 
-  const sExpense = isIncome ? 'Income' : 'Expense'
+  const sExpense = entryType === 'REFUND' ? 'Refund' : 'Expense'
 
   const originalCurrency = getCurrency(
     form.getValues('originalCurrency'),
@@ -432,12 +549,9 @@ export function ExpenseForm({
       const rate = Number(conversionRate)
       const convertedAmount = originalAmount * rate
       if (!Number.isNaN(convertedAmount)) {
-        const v = enforceCurrencyPattern(
+        const v = enforcePositiveCurrencyPattern(
           convertedAmount.toFixed(groupCurrency.decimal_digits),
         )
-        const income = Number(v) < 0
-        setIsIncome(income)
-        if (income) form.setValue('isReimbursement', false)
         form.setValue('amount', Number(v))
       }
     }
@@ -504,7 +618,9 @@ export function ExpenseForm({
                   </Link>
                 </Button>
                 <h1 className="text-lg font-semibold">
-                  {t(`${sExpense}.create`)}
+                  {entryType === 'REPAYMENT'
+                    ? t('Repayment.create')
+                    : t(`${sExpense}.create`)}
                 </h1>
                 <SubmitButton
                   size="sm"
@@ -515,6 +631,21 @@ export function ExpenseForm({
                 </SubmitButton>
               </header>
 
+              <EntryTypeSelector
+                value={entryType}
+                onValueChange={changeEntryType}
+                repaymentDisabled={group.participants.length < 2}
+              />
+
+              {entryType === 'REPAYMENT' ? (
+                <RepaymentFields
+                  form={form}
+                  group={group}
+                  groupCurrency={groupCurrency}
+                  isCreate
+                />
+              ) : (
+                <>
               <section className="space-y-5 rounded-2xl border bg-card p-5 shadow-sm">
                 <FormField
                   control={form.control}
@@ -606,13 +737,9 @@ export function ExpenseForm({
                                 : value
                             }
                             onChange={(event) => {
-                              const nextValue = enforceCurrencyPattern(
+                              const nextValue = enforcePositiveCurrencyPattern(
                                 event.target.value,
                               )
-                              const income = Number(nextValue) < 0
-                              setIsIncome(income)
-                              if (income)
-                                form.setValue('isReimbursement', false)
                               if (conversionRequired) {
                                 form.setValue(
                                   'originalAmount',
@@ -745,8 +872,12 @@ export function ExpenseForm({
                 )}
                 {t('advancedOptions')}
               </Button>
+                </>
+              )}
             </div>
 
+            {entryType !== 'REPAYMENT' && (
+              <>
             <Dialog open={sharingOpen} onOpenChange={setSharingOpen}>
               <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
                 <DialogHeader>
@@ -976,7 +1107,7 @@ export function ExpenseForm({
                                   placeholder="0.00"
                                   onChange={(event) =>
                                     onChange(
-                                      enforceCurrencyPattern(
+                                      enforcePositiveCurrencyPattern(
                                         event.target.value,
                                       ),
                                     )
@@ -1018,7 +1149,9 @@ export function ExpenseForm({
                                   inputMode="decimal"
                                   onChange={(event) =>
                                     onChange(
-                                      enforceCurrencyPattern(event.target.value),
+                                      enforcePositiveCurrencyPattern(
+                                        event.target.value,
+                                      ),
                                     )
                                   }
                                   {...field}
@@ -1030,26 +1163,6 @@ export function ExpenseForm({
                         />
                       )}
                     </>
-                  )}
-
-                  {!isIncome && (
-                    <FormField
-                      control={form.control}
-                      name="isReimbursement"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center gap-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            {t('isReimbursementField.label')}
-                          </FormLabel>
-                        </FormItem>
-                      )}
-                    />
                   )}
 
                   <FormField
@@ -1124,7 +1237,45 @@ export function ExpenseForm({
                 </div>
               </DialogContent>
             </Dialog>
+              </>
+            )}
           </>
+        ) : entryType === 'REPAYMENT' ? (
+          <div className="mx-auto max-w-xl space-y-5 pb-8">
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('Repayment.edit')}</CardTitle>
+                <CardDescription>{t('Repayment.description')}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <EntryTypeSelector
+                  value={entryType}
+                  onValueChange={changeEntryType}
+                  repaymentDisabled={group.participants.length < 2}
+                />
+              </CardContent>
+            </Card>
+            <RepaymentFields
+              form={form}
+              group={group}
+              groupCurrency={groupCurrency}
+              isCreate={false}
+            />
+            <div className="flex gap-2">
+              <SubmitButton loadingContent={t('saving')}>
+                <Save className="mr-2 h-4 w-4" />
+                {t('save')}
+              </SubmitButton>
+              {onDelete && (
+                <DeletePopup
+                  onDelete={() => onDelete(activeUserId ?? undefined)}
+                />
+              )}
+              <Button variant="ghost" asChild>
+                <Link href={`/groups/${group.id}`}>{t('cancel')}</Link>
+              </Button>
+            </div>
+          </div>
         ) : (
           <>
         <Card>
@@ -1132,6 +1283,11 @@ export function ExpenseForm({
             <CardTitle>
               {t(`${sExpense}.${isCreate ? 'create' : 'edit'}`)}
             </CardTitle>
+            <EntryTypeSelector
+              value={entryType}
+              onValueChange={changeEntryType}
+              repaymentDisabled={group.participants.length < 2}
+            />
           </CardHeader>
           <CardContent className="grid sm:grid-cols-2 gap-6">
             <FormField
@@ -1236,7 +1392,9 @@ export function ExpenseForm({
                           inputMode="decimal"
                           placeholder="0.00"
                           onChange={(event) => {
-                            const v = enforceCurrencyPattern(event.target.value)
+                            const v = enforcePositiveCurrencyPattern(
+                              event.target.value,
+                            )
                             onChange(v)
                           }}
                           {...field}
@@ -1307,7 +1465,7 @@ export function ExpenseForm({
                               inputMode="decimal"
                               placeholder="0.00"
                               onChange={(event) => {
-                                const v = enforceCurrencyPattern(
+                                const v = enforcePositiveCurrencyPattern(
                                   event.target.value,
                                 )
                                 onChange(v)
@@ -1364,10 +1522,9 @@ export function ExpenseForm({
                         inputMode="decimal"
                         placeholder="0.00"
                         onChange={(event) => {
-                          const v = enforceCurrencyPattern(event.target.value)
-                          const income = Number(v) < 0
-                          setIsIncome(income)
-                          if (income) form.setValue('isReimbursement', false)
+                          const v = enforcePositiveCurrencyPattern(
+                            event.target.value,
+                          )
                           onChange(v)
                         }}
                         onFocus={(e) => {
@@ -1380,28 +1537,6 @@ export function ExpenseForm({
                     </FormControl>
                   </div>
                   <FormMessage />
-
-                  {!isIncome && (
-                    <FormField
-                      control={form.control}
-                      name="isReimbursement"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row gap-2 items-center space-y-0 pt-2">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <div>
-                            <FormLabel>
-                              {t('isReimbursementField.label')}
-                            </FormLabel>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
-                  )}
                 </FormItem>
               )}
             />
@@ -1592,7 +1727,10 @@ export function ExpenseForm({
                                         groupCurrency,
                                         calculateShare(id, {
                                           amount: amountAsMinorUnits(
-                                            Number(form.watch('amount')),
+                                            amountForEntryStorage(
+                                              Number(form.watch('amount')),
+                                              entryType,
+                                            ),
                                             groupCurrency,
                                           ), // Convert to cents
                                           paidFor: field.value.map(
@@ -1962,5 +2100,233 @@ export function ExpenseForm({
         )}
       </form>
     </Form>
+  )
+}
+
+function EntryTypeSelector({
+  value,
+  onValueChange,
+  repaymentDisabled,
+}: {
+  value: ExpenseEntryType
+  onValueChange: (value: ExpenseEntryType) => void
+  repaymentDisabled: boolean
+}) {
+  const t = useTranslations('ExpenseForm.entryType')
+  const entries: { value: ExpenseEntryType; label: string }[] = [
+    { value: 'EXPENSE', label: t('expense') },
+    { value: 'REFUND', label: t('refund') },
+    { value: 'REPAYMENT', label: t('repayment') },
+  ]
+
+  return (
+    <div
+      role="radiogroup"
+      aria-label={t('label')}
+      className="grid grid-cols-3 gap-1 rounded-xl border bg-muted/40 p-1"
+    >
+      {entries.map((entry) => (
+        <Button
+          key={entry.value}
+          type="button"
+          role="radio"
+          aria-checked={value === entry.value}
+          variant={value === entry.value ? 'secondary' : 'ghost'}
+          className={cn(
+            'h-10 px-2',
+            value === entry.value && 'bg-background shadow-sm',
+          )}
+          disabled={entry.value === 'REPAYMENT' && repaymentDisabled}
+          onClick={() => onValueChange(entry.value)}
+        >
+          {entry.label}
+        </Button>
+      ))}
+    </div>
+  )
+}
+
+function RepaymentFields({
+  form,
+  group,
+  groupCurrency,
+  isCreate,
+}: {
+  form: UseFormReturn<ExpenseFormValues>
+  group: NonNullable<AppRouterOutput['groups']['get']['group']>
+  groupCurrency: ReturnType<typeof getCurrencyFromGroup>
+  isCreate: boolean
+}) {
+  const t = useTranslations('ExpenseForm.Repayment')
+  const payer = form.watch('paidBy')
+  const recipient = form.watch('paidFor')?.[0]?.participant
+  const participantName = (id?: string) =>
+    group.participants.find((participant) => participant.id === id)?.name
+
+  return (
+    <>
+      <section className="space-y-5 rounded-2xl border bg-card p-5 shadow-sm">
+        <p className="text-sm text-muted-foreground">{t('description')}</p>
+        <FormField
+          control={form.control}
+          name="amount"
+          render={({ field: { onChange, ...field } }) => (
+            <FormItem className="space-y-0">
+              <FormLabel className="sr-only">{t('amount')}</FormLabel>
+              <div className="flex items-baseline gap-3 border-b">
+                <span className="text-3xl text-muted-foreground">
+                  {groupCurrency.symbol}
+                </span>
+                <FormControl>
+                  <Input
+                    autoFocus={isCreate}
+                    className="h-20 rounded-none border-0 px-0 text-5xl font-medium tracking-tight shadow-none focus-visible:ring-0"
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="0.00"
+                    onChange={(event) =>
+                      onChange(
+                        enforcePositiveCurrencyPattern(event.target.value),
+                      )
+                    }
+                    onFocus={(event) => {
+                      const target = event.currentTarget
+                      setTimeout(() => target.select(), 1)
+                    }}
+                    {...field}
+                  />
+                </FormControl>
+              </div>
+              <FormMessage className="pt-1" />
+            </FormItem>
+          )}
+        />
+      </section>
+
+      <section className="grid gap-3 sm:grid-cols-2">
+        <FormField
+          control={form.control}
+          name="paidBy"
+          render={({ field }) => (
+            <FormItem className="col-span-1 space-y-0">
+              <FormLabel className="sr-only">{t('from')}</FormLabel>
+              <Select
+                value={field.value}
+                onValueChange={(participantId) => {
+                  field.onChange(participantId)
+                  if (recipient === participantId) {
+                    const replacement = group.participants.find(
+                      ({ id }) => id !== participantId,
+                    )?.id
+                    form.setValue(
+                      'paidFor',
+                      replacement
+                        ? [{ participant: replacement, shares: '1' as any }]
+                        : [],
+                      { shouldDirty: true, shouldValidate: true },
+                    )
+                  }
+                }}
+              >
+                <FormControl>
+                  <SelectTrigger className="h-auto min-h-16 justify-start gap-3 px-4 py-3 text-left">
+                    <Users className="h-5 w-5 shrink-0 text-primary" />
+                    <span className="!flex min-w-0 flex-1 flex-col !overflow-visible">
+                      <span className="text-xs font-normal text-muted-foreground">
+                        {t('from')}
+                      </span>
+                      <span className="truncate">
+                        {participantName(field.value) ?? t('from')}
+                      </span>
+                    </span>
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {group.participants.map(({ id, name }) => (
+                    <SelectItem key={id} value={id}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage className="sr-only" />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="paidFor"
+          render={({ field }) => (
+            <FormItem className="col-span-1 space-y-0">
+              <FormLabel className="sr-only">{t('to')}</FormLabel>
+              <Select
+                value={recipient}
+                onValueChange={(participantId) =>
+                  field.onChange([
+                    { participant: participantId, shares: '1' as any },
+                  ])
+                }
+              >
+                <FormControl>
+                  <SelectTrigger className="h-auto min-h-16 justify-start gap-3 px-4 py-3 text-left">
+                    <ArrowRight className="h-5 w-5 shrink-0 text-primary" />
+                    <span className="!flex min-w-0 flex-1 flex-col !overflow-visible">
+                      <span className="text-xs font-normal text-muted-foreground">
+                        {t('to')}
+                      </span>
+                      <span className="truncate">
+                        {participantName(recipient) ?? t('to')}
+                      </span>
+                    </span>
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {group.participants.map(({ id, name }) => (
+                    <SelectItem key={id} value={id} disabled={id === payer}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage className="sr-only" />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="expenseDate"
+          render={({ field }) => (
+            <FormItem className="col-span-1 min-w-0 space-y-0 sm:col-span-2">
+              <FormLabel className="sr-only">{t('date')}</FormLabel>
+              <DateInput
+                label={t('date')}
+                value={field.value}
+                onChange={field.onChange}
+                variant="summary"
+              />
+              <FormMessage className="sr-only" />
+            </FormItem>
+          )}
+        />
+      </section>
+
+      <section className="rounded-2xl border bg-card p-5 shadow-sm">
+        <FormField
+          control={form.control}
+          name="notes"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('notes')}</FormLabel>
+              <FormControl>
+                <Textarea className="text-base" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </section>
+    </>
   )
 }

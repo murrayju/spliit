@@ -22,7 +22,11 @@ function Participants({
   participantCount: number
 }) {
   const t = useTranslations('ExpenseCard')
-  const key = expense.amount > 0 ? 'paidBy' : 'receivedBy'
+  const key = expense.isReimbursement
+    ? 'repaid'
+    : expense.amount > 0
+    ? 'paidBy'
+    : 'receivedBy'
   const paidFor =
     expense.paidFor.length == participantCount && participantCount >= 4 ? (
       <strong>{t('everyone')}</strong>
