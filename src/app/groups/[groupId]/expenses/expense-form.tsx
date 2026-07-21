@@ -959,31 +959,6 @@ export function ExpenseForm({
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-5">
-                  <FormField
-                    name="originalCurrency"
-                    render={({ field: { onChange, ...field } }) => (
-                      <FormItem>
-                        <FormLabel>{t(`${sExpense}.currencyField.label`)}</FormLabel>
-                        <FormControl>
-                          {group.currencyCode ? (
-                            <CurrencySelector
-                              currencies={defaultCurrencyList(locale, '')}
-                              defaultValue={form.watch(field.name) ?? ''}
-                              isLoading={false}
-                              onValueChange={onChange}
-                            />
-                          ) : (
-                            <Input disabled {...field} />
-                          )}
-                        </FormControl>
-                        <FormDescription>
-                          {t(`${sExpense}.currencyField.description`)}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
                   {conversionRequired && (
                     <>
                       <FormField
