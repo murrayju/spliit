@@ -77,3 +77,16 @@ export function getTotalActiveUserShare(
 
   return parseFloat(total.toFixed(2))
 }
+
+export function getTotalParticipantRepayments(
+  participantId: string,
+  expenses: NonNullable<Awaited<ReturnType<typeof getGroupExpenses>>>,
+): number {
+  return expenses.reduce(
+    (total, expense) =>
+      expense.isReimbursement && expense.paidBy.id === participantId
+        ? total + expense.amount
+        : total,
+    0,
+  )
+}

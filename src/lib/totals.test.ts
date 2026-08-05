@@ -1,4 +1,8 @@
-import { calculateShare, getTotalGroupSpending } from './totals'
+import {
+  calculateShare,
+  getTotalGroupSpending,
+  getTotalParticipantRepayments,
+} from './totals'
 
 describe('calculateShare', () => {
   it('returns negative by-amount shares for refunds', () => {
@@ -29,5 +33,27 @@ describe('calculateShare', () => {
         { amount: 800, isReimbursement: true },
       ] as any),
     ).toBe(3800)
+  })
+
+  it('totals only repayments sent by the participant', () => {
+    expect(
+      getTotalParticipantRepayments('alice', [
+        {
+          amount: 800,
+          isReimbursement: true,
+          paidBy: { id: 'alice' },
+        },
+        {
+          amount: 300,
+          isReimbursement: true,
+          paidBy: { id: 'bob' },
+        },
+        {
+          amount: 500,
+          isReimbursement: false,
+          paidBy: { id: 'alice' },
+        },
+      ] as any),
+    ).toBe(800)
   })
 })

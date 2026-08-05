@@ -1,3 +1,4 @@
+import { ParticipantStatsTable } from '@/app/groups/[groupId]/stats/participant-stats-table'
 import { Totals } from '@/app/groups/[groupId]/stats/totals'
 import {
   Card,
@@ -20,6 +21,15 @@ export function TotalsPageClient() {
         </CardHeader>
         <CardContent className="flex flex-col space-y-4">
           <Totals />
+        </CardContent>
+      </Card>
+      <Card className="mb-4">
+        <CardHeader>
+          <CardTitle>{t('ParticipantTable.title')}</CardTitle>
+          <CardDescription>{t('ParticipantTable.description')}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ParticipantStatsTable />
         </CardContent>
       </Card>
     </>

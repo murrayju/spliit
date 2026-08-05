@@ -387,6 +387,15 @@
       "yourSpendings": "Your total spendings",
       "yourEarnings": "Your total earnings",
       "yourShare": "Your total share"
+    },
+    "ParticipantTable": {
+      "title": "Participant details",
+      "description": "Repayments are amounts sent to settle balances. A positive balance is owed to the participant; a negative balance is owed by them.",
+      "person": "Person",
+      "spending": "Total spending",
+      "share": "Total share",
+      "repayments": "Repayments",
+      "balance": "Balance"
     }
   },
   "Activity": {
